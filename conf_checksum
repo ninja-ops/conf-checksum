@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+
+import sys
+import hashlib
+import argparse
+from pathlib import Path
+
+VERSION = "1.0.0"
+
+def calculate_checksum(file_path):
+    """
+    Calculate MD5 checksum of a configuration file, ignoring comments, empty lines,
+    lines containing "api-key ENC", and lines starting with "!".
+    All lines are trimmed of whitespace at the beginning and end.
+    
+    Args:
+        file_path (str): Path to the configuration file
+        
+    Returns:
+        str: MD5 checksum of the processed file content
+    """
+    try:
+        content = []
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                # Trim whitespace from both ends
+                line = line.strip()
+                # Skip empty lines, comments, lines starting with !, and lines containing api-key ENC
+                if (line and 
+                    not line.startswith(('#', ';', '!')) and 
+                    'api-key ENC' not in line):
+                    content.append(line)
+        
+        # Join all valid lines and calculate MD5
+        content_str = '\n'.join(content)
+        return hashlib.md5(content_str.encode('utf-8')).hexdigest()
+    
+    except FileNotFoundError:
+        print(f"Error: File '{file_path}' not found.", file=sys.stderr)
+        sys.exit(1)
+    except PermissionError:
+        print(f"Error: Permission denied to read '{file_path}'.", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: An unexpected error occurred: {str(e)}", file=sys.stderr)
+        sys.exit(1)
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Calculate MD5 checksum of a configuration file, ignoring comments and empty lines.',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    
+    parser.add_argument('file', help='Path to the configuration file')
+    parser.add_argument('-v', '--version', action='version', version=f'%(prog)s {VERSION}')
+    
+    args = parser.parse_args()
+    
+    # Validate file exists before processing
+    if not Path(args.file).is_file():
+        print(f"Error: '{args.file}' is not a valid file.", file=sys.stderr)
+        sys.exit(1)
+    
+    checksum = calculate_checksum(args.file)
+    print(checksum)
+
+if __name__ == '__main__':
+    main() 
